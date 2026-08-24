@@ -46,7 +46,8 @@ class ShellLayout extends StatelessWidget {
     final String userLastName = user?.userMetadata?['last_name'] ?? '';
     final String userFullName = '$userFirstName $userLastName'.trim();
     final String displayName = userFullName.isNotEmpty ? userFullName : 'User Account';
-    final String? userLogo = user?.userMetadata?['logo_url'];
+    final String? userLogo = (user?.userMetadata?['logo_url'] as String?) ??
+        (companyProvider.logoUrl.isNotEmpty ? companyProvider.logoUrl : null);
     
     // Check screen width for responsiveness
     final double width = MediaQuery.of(context).size.width;
@@ -449,13 +450,13 @@ class ShellLayout extends StatelessWidget {
             fit: BoxFit.contain,
           );
         } else {
-          content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+          content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
         }
       } catch (e) {
-        content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+        content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
       }
     } else {
-      content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+      content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
     }
 
     return Container(

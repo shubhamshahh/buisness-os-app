@@ -292,7 +292,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final companyProvider = Provider.of<CompanyProvider>(context);
     final user = _supabaseService.client.auth.currentUser;
-    final String? userLogo = user?.userMetadata?['logo_url'];
+    final String? userLogo = (user?.userMetadata?['logo_url'] as String?) ?? 
+        (companyProvider.logoUrl.isNotEmpty ? companyProvider.logoUrl : null);
 
     if (companyProvider.isLoading || _loadingData) {
       return const Scaffold(
