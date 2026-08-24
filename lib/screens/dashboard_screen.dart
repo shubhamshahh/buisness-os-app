@@ -615,7 +615,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         content = Image.network(
           cleanSource,
           fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) => Image.asset('assets/logo.png', fit: BoxFit.contain),
+          errorBuilder: (context, error, stackTrace) => Image.asset('assets/company_logo.png', fit: BoxFit.contain),
         );
       } else {
         try {
@@ -624,14 +624,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           content = Image.memory(
             bytes,
             fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => Image.asset('assets/logo.png', fit: BoxFit.contain),
+            errorBuilder: (context, error, stackTrace) => Image.asset('assets/company_logo.png', fit: BoxFit.contain),
           );
         } catch (_) {
-          content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+          content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
         }
       }
     } else {
-      content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+      content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
     }
 
     return Container(
