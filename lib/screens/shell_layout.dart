@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/company_provider.dart';
-import 'dart:convert';
 
 class ShellLayout extends StatelessWidget {
   final Widget child;
@@ -46,8 +45,6 @@ class ShellLayout extends StatelessWidget {
     final String userLastName = user?.userMetadata?['last_name'] ?? '';
     final String userFullName = '$userFirstName $userLastName'.trim();
     final String displayName = userFullName.isNotEmpty ? userFullName : 'User Account';
-    final String? userLogo = (user?.userMetadata?['logo_url'] as String?) ??
-        (companyProvider.logoUrl.isNotEmpty ? companyProvider.logoUrl : null);
     
     // Check screen width for responsiveness
     final double width = MediaQuery.of(context).size.width;
@@ -436,44 +433,7 @@ class ShellLayout extends StatelessWidget {
     );
   }
 
-  Widget _buildLogoWidget(String? logoSource, {double size = 40}) {
-    Widget content;
-    if (logoSource != null && logoSource.isNotEmpty) {
-      try {
-        if (logoSource.startsWith('data:image')) {
-          final base64String = logoSource.split(',').last;
-          final bytes = base64.decode(base64String);
-          content = Image.memory(
-            bytes,
-            fit: BoxFit.contain,
-          );
-        } else if (logoSource.startsWith('http')) {
-          content = Image.network(
-            logoSource,
-            fit: BoxFit.contain,
-          );
-        } else {
-          content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
-        }
-      } catch (e) {
-        content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
-      }
-    } else {
-      content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
-    }
 
-    return Container(
-      height: size,
-      width: size,
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1E293B), width: 1),
-      ),
-      child: Center(child: content),
-    );
-  }
 
   Widget _buildSidebarTile({
     required IconData icon,

@@ -90,7 +90,7 @@ class CompanyProvider extends ChangeNotifier {
           final List<dynamic> companiesList = await _supabaseService.client
               .from('companies')
               .select('id, name, logo_url')
-              .order('id', {ascending: true})
+              .order('id', ascending: true)
               .limit(1);
 
           if (companiesList.isNotEmpty) {
