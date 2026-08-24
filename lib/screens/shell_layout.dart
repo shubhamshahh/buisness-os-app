@@ -61,25 +61,28 @@ class ShellLayout extends StatelessWidget {
         children: [
           Row(
             children: [
-              _buildLogoWidget(userLogo, size: 40),
+              Image.asset(
+                'assets/logo.png',
+                height: 52,
+                width: 52,
+                fit: BoxFit.contain,
+              ),
               const SizedBox(width: 12),
-              Expanded(
+              const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      companyProvider.companyName.isNotEmpty
-                          ? companyProvider.companyName
-                          : 'BusinessOS',
-                      style: const TextStyle(
+                      'BusinessOS',
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: 18,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const Text(
-                      'BusinessOS Platform',
+                    Text(
+                      'Enterprise Suite',
                       style: TextStyle(color: Colors.grey, fontSize: 11),
                     ),
                   ],
