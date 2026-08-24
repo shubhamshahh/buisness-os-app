@@ -189,24 +189,30 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     _scrollToBottom();
 
     try {
-      // 1. Save user message to database
-      await _supabaseService.insert(table: 'chat_history', row: {
-        'company_id': cid,
-        'user_id': uid,
-        'message': text,
-        'sender': 'user',
-      });
+      // 1. Save user message to database (optional log)
+      try {
+        await _supabaseService.insert(table: 'chat_history', row: {
+          'company_id': cid,
+          'message': text,
+          'sender': 'user',
+        });
+      } catch (e) {
+        debugPrint('Could not log user message to chat_history: $e');
+      }
 
       // 2. Process query with intelligent local database analyzer
       final responseText = await _analyzeQuery(text, cid);
 
-      // 3. Save AI response to database
-      await _supabaseService.insert(table: 'chat_history', row: {
-        'company_id': cid,
-        'user_id': uid,
-        'message': responseText,
-        'sender': 'ai',
-      });
+      // 3. Save AI response to database (optional log)
+      try {
+        await _supabaseService.insert(table: 'chat_history', row: {
+          'company_id': cid,
+          'message': responseText,
+          'sender': 'ai',
+        });
+      } catch (e) {
+        debugPrint('Could not log AI response to chat_history: $e');
+      }
 
       setState(() {
         _messages.add({
