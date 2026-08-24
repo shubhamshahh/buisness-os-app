@@ -77,8 +77,8 @@ class AuthProvider extends ChangeNotifier {
           'company_name': companyName,
           'gst_number': gstNumber,
           'company_address': companyAddress,
-          'logo_url': ?logoBase64,
-          'signature_url': ?signatureBase64,
+          'logo_url': logoBase64,
+          'signature_url': signatureBase64,
         },
       );
 
