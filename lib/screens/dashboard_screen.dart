@@ -609,25 +609,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildLogoWidget(String? logoSource, {double size = 56}) {
     Widget content;
-    if (logoSource != null && logoSource.isNotEmpty) {
-      try {
-        if (logoSource.startsWith('data:image')) {
-          final base64String = logoSource.split(',').last;
-          final bytes = base64.decode(base64String);
+    if (logoSource != null && logoSource.trim().isNotEmpty) {
+      final cleanSource = logoSource.trim();
+      if (cleanSource.startsWith('http')) {
+        content = Image.network(
+          cleanSource,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) => Image.asset('assets/logo.png', fit: BoxFit.contain),
+        );
+      } else {
+        try {
+          final base64String = cleanSource.contains(',') ? cleanSource.split(',').last : cleanSource;
+          final bytes = base64.decode(base64String.trim());
           content = Image.memory(
             bytes,
             fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => Image.asset('assets/logo.png', fit: BoxFit.contain),
           );
-        } else if (logoSource.startsWith('http')) {
-          content = Image.network(
-            logoSource,
-            fit: BoxFit.contain,
-          );
-        } else {
+        } catch (_) {
           content = Image.asset('assets/logo.png', fit: BoxFit.contain);
         }
-      } catch (e) {
-        content = Image.asset('assets/logo.png', fit: BoxFit.contain);
       }
     } else {
       content = Image.asset('assets/logo.png', fit: BoxFit.contain);

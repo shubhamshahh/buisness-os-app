@@ -53,8 +53,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (companyData != null) {
         _companyNameController.text = companyData['name'] ?? '';
-        _gstController.text = companyData['gst_number'] ?? '';
-        _addressController.text = companyData['company_address'] ?? '';
+        _gstController.text = companyData['gstin'] ?? '';
+        _addressController.text = companyData['address'] ?? '';
       }
 
       // 2. Fetch Business Settings
@@ -94,8 +94,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // 1. Update Company metadata
       await _supabaseService.client.from('companies').update({
         'name': _companyNameController.text,
-        'gst_number': _gstController.text,
-        'company_address': _addressController.text,
+        'gstin': _gstController.text,
+        'address': _addressController.text,
       }).eq('id', cid);
 
       // Refresh cached name in Provider
