@@ -433,58 +433,41 @@ class ShellLayout extends StatelessWidget {
   }
 
   Widget _buildLogoWidget(String? logoSource, {double size = 40}) {
-    if (logoSource == null || logoSource.isEmpty) {
-      return Container(
-        height: size,
-        width: size,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-          ),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(Icons.layers, size: size * 0.6, color: Colors.white),
-      );
-    }
-
-    try {
-      if (logoSource.startsWith('data:image')) {
-        final base64String = logoSource.split(',').last;
-        final bytes = base64.decode(base64String);
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.memory(
+    Widget content;
+    if (logoSource != null && logoSource.isNotEmpty) {
+      try {
+        if (logoSource.startsWith('data:image')) {
+          final base64String = logoSource.split(',').last;
+          final bytes = base64.decode(base64String);
+          content = Image.memory(
             bytes,
-            height: size,
-            width: size,
-            fit: BoxFit.cover,
-          ),
-        );
-      } else if (logoSource.startsWith('http')) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.network(
+            fit: BoxFit.contain,
+          );
+        } else if (logoSource.startsWith('http')) {
+          content = Image.network(
             logoSource,
-            height: size,
-            width: size,
-            fit: BoxFit.cover,
-          ),
-        );
+            fit: BoxFit.contain,
+          );
+        } else {
+          content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+        }
+      } catch (e) {
+        content = Image.asset('assets/logo.png', fit: BoxFit.contain);
       }
-    } catch (e) {
-      debugPrint('Error decoding base64 logo: $e');
+    } else {
+      content = Image.asset('assets/logo.png', fit: BoxFit.contain);
     }
 
     return Container(
       height: size,
       width: size,
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
-        ),
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1E293B), width: 1),
       ),
-      child: Icon(Icons.layers, size: size * 0.6, color: Colors.white),
+      child: Center(child: content),
     );
   }
 

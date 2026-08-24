@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:speech_to_text/speech_to_text.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../providers/company_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/supabase_service.dart';
@@ -18,6 +20,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final ScrollController _scrollController = ScrollController();
   final NumberFormat _currencyFormat = NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
+  // Voice Recognition & Speaking states
+  final SpeechToText _speech = SpeechToText();
+  final FlutterTts _tts = FlutterTts();
+  bool _speechEnabled = false;
+  bool _isListening = false;
+  bool _voiceOutput = true;
+
   List<Map<String, dynamic>> _messages = [];
   bool _loadingHistory = false;
   bool _generatingResponse = false;
@@ -25,16 +34,93 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   @override
   void initState() {
     super.initState();
+    _initSpeech();
+    _initTts();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadChatHistory();
     });
+  }
+
+  void _initSpeech() async {
+    try {
+      _speechEnabled = await _speech.initialize(
+        onError: (val) => debugPrint('Speech onError: $val'),
+        onStatus: (val) {
+          debugPrint('Speech onStatus: $val');
+          if (val == 'done' || val == 'notListening') {
+            setState(() {
+              _isListening = false;
+            });
+          }
+        },
+      );
+      setState(() {});
+    } catch (e) {
+      debugPrint('Speech init error: $e');
+    }
+  }
+
+  void _initTts() async {
+    try {
+      await _tts.setLanguage("en-IN");
+      await _tts.setSpeechRate(0.5);
+      await _tts.setVolume(1.0);
+      await _tts.setPitch(1.0);
+    } catch (e) {
+      debugPrint('TTS init error: $e');
+    }
   }
 
   @override
   void dispose() {
     _inputController.dispose();
     _scrollController.dispose();
+    _speech.stop();
+    _tts.stop();
     super.dispose();
+  }
+
+  void _toggleListening() {
+    if (_isListening) {
+      _stopListening();
+    } else {
+      _startListening();
+    }
+  }
+
+  void _startListening() async {
+    if (!_speechEnabled) {
+      _initSpeech();
+      return;
+    }
+    setState(() {
+      _isListening = true;
+    });
+    try {
+      await _speech.listen(
+        onResult: (val) {
+          setState(() {
+            _inputController.text = val.recognizedWords;
+          });
+        },
+      );
+    } catch (e) {
+      debugPrint('Speech listen error: $e');
+    }
+  }
+
+  void _stopListening() async {
+    try {
+      await _speech.stop();
+    } catch (e) {
+      debugPrint('Speech stop error: $e');
+    }
+    setState(() {
+      _isListening = false;
+    });
+    if (_inputController.text.trim().isNotEmpty) {
+      _sendMessage();
+    }
   }
 
   Future<void> _loadChatHistory() async {
@@ -130,6 +216,10 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         });
       });
       _scrollToBottom();
+
+      if (_voiceOutput) {
+        await _tts.speak(responseText);
+      }
     } catch (e) {
       debugPrint('Error sending message: $e');
     } finally {
@@ -228,6 +318,35 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     return Theme(
       data: theme,
       child: Scaffold(
+        appBar: AppBar(
+          title: const Text('BusinessOS AI Assistant'),
+          backgroundColor: const Color(0xFF0F172A),
+          elevation: 0,
+          actions: [
+            Row(
+              children: [
+                Icon(
+                  _voiceOutput ? Icons.volume_up : Icons.volume_off,
+                  color: _voiceOutput ? Colors.blueAccent : Colors.grey,
+                  size: 20,
+                ),
+                const SizedBox(width: 4),
+                Switch(
+                  value: _voiceOutput,
+                  activeThumbColor: Colors.blueAccent,
+                  onChanged: (val) {
+                    setState(() {
+                      _voiceOutput = val;
+                    });
+                    if (!val) {
+                      _tts.stop();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
         body: _loadingHistory
             ? const Center(child: CircularProgressIndicator(color: Colors.blueAccent))
             : Column(
@@ -314,7 +433,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                             style: const TextStyle(color: Colors.white),
                             onSubmitted: (_) => _sendMessage(),
                             decoration: InputDecoration(
-                              hintText: 'Ask about billing, stock, sales...',
+                              hintText: _isListening ? 'Listening... Speak now...' : 'Ask about billing, stock, sales...',
                               hintStyle: const TextStyle(color: Colors.grey),
                               fillColor: const Color(0xFF1E293B),
                               filled: true,
@@ -323,6 +442,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                                 borderSide: BorderSide.none,
                               ),
                               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _isListening ? Icons.mic_off : Icons.mic,
+                                  color: _isListening ? Colors.redAccent : Colors.grey,
+                                ),
+                                onPressed: _toggleListening,
+                              ),
                             ),
                           ),
                         ),

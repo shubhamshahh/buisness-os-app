@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert';
 import '../providers/company_provider.dart';
 import '../services/supabase_service.dart';
 
@@ -290,7 +291,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final companyProvider = Provider.of<CompanyProvider>(context);
-    final formattedDate = DateFormat('EEE, d MMM yyyy').format(DateTime.now());
+    final user = _supabaseService.client.auth.currentUser;
+    final String? userLogo = user?.userMetadata?['logo_url'];
 
     if (companyProvider.isLoading || _loadingData) {
       return const Scaffold(
@@ -322,67 +324,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            companyProvider.companyName.isNotEmpty ? companyProvider.companyName : 'Mk Polymers',
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Row(
+                    Row(
+                      children: [
+                        _buildLogoWidget(userLogo, size: 56),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Colors.green,
-                                  shape: BoxShape.circle,
+                              Text(
+                                companyProvider.companyName.isNotEmpty ? companyProvider.companyName : 'MK Polymers',
+                                style: const TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -0.5,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(width: 6),
-                              const Text(
-                                'Cloud Sync Active',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.bold,
+                              const SizedBox(height: 5),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFECFDF5),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: const Color(0xFFA7F3D0)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF10B981),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 5),
+                                          const Text(
+                                            'Cloud Sync Active',
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              color: Color(0xFF047857),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text('•', style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 12)),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Enterprise Edition',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        color: Color(0xFF64748B),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          DateFormat('hh:mm a').format(DateTime.now()),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          formattedDate,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -578,6 +603,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildLogoWidget(String? logoSource, {double size = 56}) {
+    Widget content;
+    if (logoSource != null && logoSource.isNotEmpty) {
+      try {
+        if (logoSource.startsWith('data:image')) {
+          final base64String = logoSource.split(',').last;
+          final bytes = base64.decode(base64String);
+          content = Image.memory(
+            bytes,
+            fit: BoxFit.contain,
+          );
+        } else if (logoSource.startsWith('http')) {
+          content = Image.network(
+            logoSource,
+            fit: BoxFit.contain,
+          );
+        } else {
+          content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+        }
+      } catch (e) {
+        content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+      }
+    } else {
+      content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+    }
+
+    return Container(
+      height: size,
+      width: size,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(child: content),
     );
   }
 }
