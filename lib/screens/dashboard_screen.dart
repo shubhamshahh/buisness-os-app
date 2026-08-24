@@ -623,13 +623,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             fit: BoxFit.contain,
           );
         } else {
-          content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+          content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
         }
       } catch (e) {
-        content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+        content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
       }
     } else {
-      content = Image.asset('assets/logo.png', fit: BoxFit.contain);
+      content = Image.asset('assets/company_logo.png', fit: BoxFit.contain);
     }
 
     return Container(
