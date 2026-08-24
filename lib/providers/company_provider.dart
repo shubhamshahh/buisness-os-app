@@ -9,12 +9,14 @@ class CompanyProvider extends ChangeNotifier {
   String _logoUrl = '';
   String _role = 'owner';
   bool _isLoading = false;
+  String _debugMessage = '';
 
   int? get companyId => _companyId;
   String get companyName => _companyName;
   String get logoUrl => _logoUrl;
   String get role => _role;
   bool get isLoading => _isLoading;
+  String get debugMessage => _debugMessage;
 
   CompanyProvider() {
     _supabaseService.client.auth.onAuthStateChange.listen((data) {
@@ -179,8 +181,9 @@ class CompanyProvider extends ChangeNotifier {
           }
         }
       }
-    } catch (e) {
-      debugPrint('Error fetching user company: $e');
+    } catch (e, stackTrace) {
+      _debugMessage = 'Error: $e\n$stackTrace';
+      debugPrint('Error fetching user company: $e\n$stackTrace');
       clear();
     } finally {
       _isLoading = false;
@@ -193,6 +196,7 @@ class CompanyProvider extends ChangeNotifier {
     _companyName = '';
     _logoUrl = '';
     _role = 'owner';
+    _debugMessage = '';
     notifyListeners();
   }
 }

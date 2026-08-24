@@ -25,6 +25,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Map<String, dynamic>> _todayInvoices = [];
   List<Map<String, dynamic>> _lowStockProducts = [];
+  String _dashboardDebug = '';
 
   @override
   void initState() {
@@ -128,8 +129,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _lowStockProducts = lowStockList;
         _yesterdayRevenue = yRevenue;
       });
-    } catch (e) {
-      debugPrint('Error loading dashboard: $e');
+    } catch (e, stackTrace) {
+      setState(() {
+        _dashboardDebug = 'Error: $e\n$stackTrace';
+      });
+      debugPrint('Error loading dashboard: $e\n$stackTrace');
     } finally {
       setState(() {
         _loadingData = false;
@@ -323,6 +327,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (companyProvider.debugMessage.isNotEmpty || _dashboardDebug.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '⚠️ Supabase Connection Debugger:',
+                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      const SizedBox(height: 6),
+                      SelectableText(
+                        'Company provider error:\n${companyProvider.debugMessage}\n\nDashboard load error:\n$_dashboardDebug',
+                        style: const TextStyle(color: Colors.red, fontSize: 11, fontFamily: 'monospace'),
+                      ),
+                    ],
+                  ),
+                ),
               // Header
               Container(
                 padding: const EdgeInsets.all(18),
