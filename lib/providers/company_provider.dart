@@ -36,7 +36,7 @@ class CompanyProvider extends ChangeNotifier {
     try {
       final response = await _supabaseService.client
           .from('user_companies')
-          .select('company_id, role, companies(name, logo_url)')
+          .select('company_id, role')
           .eq('user_id', userId)
           .maybeSingle();
 
@@ -44,13 +44,20 @@ class CompanyProvider extends ChangeNotifier {
         _companyId = response['company_id'] as int?;
         _role = (response['role'] as String?) ?? 'owner';
         
-        final companiesObj = response['companies'];
-        if (companiesObj != null && companiesObj is Map) {
-          _companyName = (companiesObj['name'] as String?) ?? 'MK Polymers';
-          _logoUrl = (companiesObj['logo_url'] as String?) ?? '';
-        } else {
-          _companyName = 'MK Polymers';
-          _logoUrl = '';
+        if (_companyId != null) {
+          final compRes = await _supabaseService.client
+              .from('companies')
+              .select('name, logo_url')
+              .eq('id', _companyId!)
+              .maybeSingle();
+              
+          if (compRes != null) {
+            _companyName = (compRes['name'] as String?) ?? 'MK Polymers';
+            _logoUrl = (compRes['logo_url'] as String?) ?? '';
+          } else {
+            _companyName = 'MK Polymers';
+            _logoUrl = '';
+          }
         }
       } else {
         // User has no company mapping yet. Check signup metadata
