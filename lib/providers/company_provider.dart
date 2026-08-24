@@ -40,7 +40,7 @@ class CompanyProvider extends ChangeNotifier {
       try {
         final response = await _supabaseService.client
             .from('user_companies')
-            .select('company_id, role, companies(name, logo_url)')
+            .select('company_id, role, companies(name)')
             .eq('user_id', userId)
             .maybeSingle();
 
@@ -51,10 +51,8 @@ class CompanyProvider extends ChangeNotifier {
           final companiesObj = response['companies'];
           if (companiesObj != null && companiesObj is Map) {
             _companyName = (companiesObj['name'] as String?) ?? 'MK Polymers';
-            _logoUrl = (companiesObj['logo_url'] as String?) ?? '';
           } else {
             _companyName = 'MK Polymers';
-            _logoUrl = '';
           }
           loaded = true;
         }
@@ -76,16 +74,14 @@ class CompanyProvider extends ChangeNotifier {
           if (_companyId != null) {
             final compRes = await _supabaseService.client
                 .from('companies')
-                .select('name, logo_url')
+                .select('name')
                 .eq('id', _companyId!)
                 .maybeSingle();
                 
             if (compRes != null) {
               _companyName = (compRes['name'] as String?) ?? 'MK Polymers';
-              _logoUrl = (compRes['logo_url'] as String?) ?? '';
             } else {
               _companyName = 'MK Polymers';
-              _logoUrl = '';
             }
           }
           loaded = true;
@@ -93,7 +89,6 @@ class CompanyProvider extends ChangeNotifier {
           // User has no company mapping yet. Check signup metadata
           final metadata = _supabaseService.currentUser?.userMetadata ?? {};
           final userCompanyName = metadata['company_name'] as String?;
-          final userLogo = metadata['logo_url'] as String?;
           final userAddress = metadata['company_address'] as String?;
           final userGstin = metadata['gst_number'] as String?;
           final userSig = metadata['signature_url'] as String?;
@@ -101,11 +96,10 @@ class CompanyProvider extends ChangeNotifier {
           if (userCompanyName != null && userCompanyName.trim().isNotEmpty) {
             final List<dynamic> newCompanyList = await _supabaseService.client.from('companies').insert({
               'name': userCompanyName.trim(),
-              'logo_url': userLogo ?? '',
               'address': userAddress ?? '',
-              'gstin': userGstin ?? '',
-              'signature_url': userSig ?? '',
-            }).select('id, name, logo_url');
+              'gst_number': userGstin ?? '',
+              'signatory_name': userSig ?? '',
+            }).select('id, name');
 
             if (newCompanyList.isNotEmpty) {
               final newCompany = newCompanyList.first;
@@ -119,14 +113,13 @@ class CompanyProvider extends ChangeNotifier {
               
               _companyId = cid;
               _companyName = (newCompany['name'] as String?) ?? userCompanyName;
-              _logoUrl = (newCompany['logo_url'] as String?) ?? (userLogo ?? '');
               _role = 'owner';
             }
           } else {
             // Fallback to first existing company
             final List<dynamic> companiesList = await _supabaseService.client
                 .from('companies')
-                .select('id, name, logo_url')
+                .select('id, name')
                 .order('id', ascending: true)
                 .limit(1);
 
@@ -142,18 +135,20 @@ class CompanyProvider extends ChangeNotifier {
               
               _companyId = cid;
               _companyName = (firstCompany['name'] as String?) ?? 'MK Polymers';
-              _logoUrl = (firstCompany['logo_url'] as String?) ?? '';
               _role = 'owner';
             }
           }
         }
       }
 
-      // Auto-repair placehoders
+      // Auto-repair placeholders
       if (_companyId != null) {
         final metadata = _supabaseService.currentUser?.userMetadata ?? {};
         final userCompanyName = metadata['company_name'] as String?;
         final userLogo = metadata['logo_url'] as String?;
+        if (userLogo != null && userLogo.isNotEmpty) {
+          _logoUrl = userLogo;
+        }
 
         if (_companyName == 'BusinessOS' || _companyName == 'My Business' || _companyName == 'Business OS') {
           if (userCompanyName != null && userCompanyName.trim().isNotEmpty) {
@@ -166,18 +161,6 @@ class CompanyProvider extends ChangeNotifier {
             } catch (_) {}
           } else {
             _companyName = 'MK Polymers';
-          }
-        }
-
-        if (_logoUrl.isEmpty || _logoUrl == '/logo.png') {
-          if (userLogo != null && userLogo.isNotEmpty && userLogo != '/logo.png') {
-            _logoUrl = userLogo;
-            try {
-              await _supabaseService.client
-                  .from('companies')
-                  .update({'logo_url': userLogo})
-                  .eq('id', _companyId!);
-            } catch (_) {}
           }
         }
       }

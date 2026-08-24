@@ -36,6 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadDashboard() async {
+    if (!mounted) return;
     final companyProvider = Provider.of<CompanyProvider>(context, listen: false);
     final int? cid = companyProvider.companyId;
     if (cid == null) return;

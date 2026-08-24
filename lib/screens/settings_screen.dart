@@ -53,7 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (companyData != null) {
         _companyNameController.text = companyData['name'] ?? '';
-        _gstController.text = companyData['gstin'] ?? '';
+        _gstController.text = companyData['gst_number'] ?? companyData['gstin'] ?? '';
         _addressController.text = companyData['address'] ?? '';
       }
 
@@ -94,7 +94,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // 1. Update Company metadata
       await _supabaseService.client.from('companies').update({
         'name': _companyNameController.text,
-        'gstin': _gstController.text,
+        'gst_number': _gstController.text,
         'address': _addressController.text,
       }).eq('id', cid);
 
