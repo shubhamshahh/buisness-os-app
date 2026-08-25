@@ -40,8 +40,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _initSessionMode() async {
     final prefs = await SharedPreferences.getInstance();
+    // Always default active session to 'gst' on app launch
+    await prefs.setString('buisnessos_session_mode', 'gst');
     setState(() {
-      _activeSessionMode = prefs.getString('buisnessos_session_mode') ?? 'gst';
+      _activeSessionMode = 'gst';
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDashboard();
