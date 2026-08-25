@@ -6,10 +6,13 @@ import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'supabase_service.dart';
 
 class UpdateInfo {
   final String version;
+  final String currentInstalledVersion;
   final String releaseNotes;
   final String downloadUrl;
   final String htmlUrl;
@@ -17,6 +20,7 @@ class UpdateInfo {
 
   UpdateInfo({
     required this.version,
+    required this.currentInstalledVersion,
     required this.releaseNotes,
     required this.downloadUrl,
     required this.htmlUrl,
@@ -25,11 +29,21 @@ class UpdateInfo {
 }
 
 class AppUpdateService {
-  static const String currentVersion = '1.0.0';
+  static const String fallbackVersion = '1.0.4';
   static const String githubApiUrl = 'https://api.github.com/repos/shubhamshahh/buisness-os-app/releases/latest';
 
   /// Checks GitHub Releases API and Supabase for new APK updates
   static Future<UpdateInfo?> checkForUpdates() async {
+    String currentVersion = fallbackVersion;
+    try {
+      final pkgInfo = await PackageInfo.fromPlatform();
+      if (pkgInfo.version.isNotEmpty) {
+        currentVersion = pkgInfo.version;
+      }
+    } catch (_) {}
+
+    final prefs = await SharedPreferences.getInstance();
+
     // 1. Try GitHub API
     try {
       final response = await http.get(
@@ -53,14 +67,17 @@ class AppUpdateService {
           }
         }
 
+        final String dismissedVer = prefs.getString('dismissed_update_version') ?? '';
         final bool isNewer = _isVersionNewer(currentVersion, tagName);
+        final bool shouldShow = isNewer && (dismissedVer != tagName);
 
         return UpdateInfo(
           version: tagName.isEmpty ? currentVersion : tagName,
+          currentInstalledVersion: currentVersion,
           releaseNotes: body,
           downloadUrl: downloadUrl,
           htmlUrl: htmlUrl,
-          hasUpdate: isNewer,
+          hasUpdate: shouldShow,
         );
       }
     } catch (e) {
@@ -84,6 +101,7 @@ class AppUpdateService {
         if (isNewer) {
           return UpdateInfo(
             version: latestVer,
+            currentInstalledVersion: currentVersion,
             releaseNotes: 'Performance improvements, invoice enhancements, and new features.',
             downloadUrl: apkUrl,
             htmlUrl: apkUrl,
@@ -277,7 +295,7 @@ class _UpdateDialogContentState extends State<_UpdateDialogContent> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Current: v${AppUpdateService.currentVersion}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  Text('Current: v${widget.updateInfo.currentInstalledVersion}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.blueAccent),
                   Text('New: v${widget.updateInfo.version}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
                 ],
@@ -307,7 +325,13 @@ class _UpdateDialogContentState extends State<_UpdateDialogContent> {
       actions: [
         if (!_isDownloading) ...[
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString('dismissed_update_version', widget.updateInfo.version);
+              if (context.mounted) {
+                Navigator.pop(context);
+              }
+            },
             child: const Text('Later', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
           ),
           ElevatedButton.icon(
