@@ -346,12 +346,40 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
                         ),
                         const Divider(color: Colors.grey),
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Column(
                             children: [
-                              const Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
-                              Text(_currencyFormat.format(total), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Subtotal:', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                                  Text(
+                                    _currencyFormat.format(double.tryParse(invoice['subtotal']?.toString() ?? '') ?? (total > 0 ? (total - (double.tryParse(invoice['gst']?.toString() ?? '0') ?? 0.0)) : 0.0)),
+                                    style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                              if ((double.tryParse(invoice['gst']?.toString() ?? '0') ?? 0.0) > 0) ...[
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('GST (18%):', style: TextStyle(color: Colors.blueAccent, fontSize: 13, fontWeight: FontWeight.w600)),
+                                    Text(
+                                      _currencyFormat.format(double.tryParse(invoice['gst']?.toString() ?? '0') ?? 0.0),
+                                      style: const TextStyle(color: Colors.blueAccent, fontSize: 14, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 15)),
+                                  Text(_currencyFormat.format(total), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.greenAccent)),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -364,6 +392,7 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
                               'address': 'c/168, Mk Polymers, New Post Office Road, Modhera GIDC, Mahesana - 384002',
                               'gst': 'kkbk00020551584',
                               'signatory': 'M.A. SHAH',
+                              'logo_url': companyProvider.logoUrl,
                             };
 
                             await PdfService.shareOrPrintInvoice(
