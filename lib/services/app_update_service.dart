@@ -139,6 +139,29 @@ class _UpdateDialogContentState extends State<_UpdateDialogContent> {
   double _downloadProgress = 0.0;
   String _statusText = '';
 
+  Future<http.StreamedResponse> _getWithRedirects(String initialUrl) async {
+    final client = http.Client();
+    var currentUri = Uri.parse(initialUrl);
+    int redirectCount = 0;
+
+    while (redirectCount < 10) {
+      final request = http.Request('GET', currentUri);
+      request.headers['User-Agent'] = 'Mozilla/5.0';
+      final response = await client.send(request);
+
+      if (response.statusCode >= 300 && response.statusCode < 400) {
+        final String? location = response.headers['location'];
+        if (location != null && location.isNotEmpty) {
+          currentUri = Uri.parse(location);
+          redirectCount++;
+          continue;
+        }
+      }
+      return response;
+    }
+    throw Exception('Too many redirects');
+  }
+
   Future<void> _startDownloadAndInstall() async {
     setState(() {
       _isDownloading = true;
@@ -151,11 +174,8 @@ class _UpdateDialogContentState extends State<_UpdateDialogContent> {
         : widget.updateInfo.htmlUrl;
 
     try {
-      if (targetUrl.endsWith('.apk')) {
-        final Uri url = Uri.parse(targetUrl);
-        final request = http.Request('GET', url);
-        final response = await http.Client().send(request);
-
+      final response = await _getWithRedirects(targetUrl);
+      if (response.statusCode == 200) {
         final int contentLength = response.contentLength ?? 0;
         final Directory tempDir = await getTemporaryDirectory();
         final File apkFile = File('${tempDir.path}/app-release.apk');
