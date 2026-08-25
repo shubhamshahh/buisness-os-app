@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import 'supabase_service.dart';
 
 class UpdateInfo {
@@ -177,17 +178,19 @@ class AppUpdateService {
             ),
             ElevatedButton.icon(
               onPressed: () async {
-                final Uri url = Uri.parse(updateInfo.downloadUrl);
+                final String targetUrl = updateInfo.downloadUrl.isNotEmpty ? updateInfo.downloadUrl : updateInfo.htmlUrl;
+                final Uri url = Uri.parse(targetUrl);
                 try {
-                  final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
-                  if (!launched) {
-                    await launchUrl(url, mode: LaunchMode.platformDefault);
-                  }
-                } catch (e) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                } catch (_) {
                   try {
-                    await launchUrl(url, mode: LaunchMode.platformDefault);
-                  } catch (e2) {
-                    debugPrint('Error launching update URL: $e2');
+                    await launchUrlString(targetUrl, mode: LaunchMode.externalApplication);
+                  } catch (_) {
+                    try {
+                      await launchUrl(url, mode: LaunchMode.platformDefault);
+                    } catch (e2) {
+                      debugPrint('Error launching update URL: $e2');
+                    }
                   }
                 }
               },
