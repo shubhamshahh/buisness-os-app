@@ -29,6 +29,9 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
   String? _selectedCustomerId;
   final _customerNameController = TextEditingController();
   
+  // Billing Session mode
+  bool _isGstInvoice = true;
+
   // Invoice items state
   final List<Map<String, dynamic>> _invoiceItems = []; // { product_id, product_name, price, qty, total }
   
@@ -45,7 +48,7 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
     return sum;
   }
 
-  double get _gst => _subtotal * 0.18; // 18% GST
+  double get _gst => _isGstInvoice ? (_subtotal * 0.18) : 0.0;
   double get _total => _subtotal + _gst;
 
   @override
@@ -448,6 +451,64 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Billing Mode Segmented Buttons
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _isGstInvoice = true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: _isGstInvoice ? const Color(0xFF2563EB) : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '🏢 GST Bill (18%)',
+                                      style: TextStyle(
+                                        color: _isGstInvoice ? Colors.white : const Color(0xFF475569),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setState(() => _isGstInvoice = false),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: !_isGstInvoice ? const Color(0xFF059669) : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '📜 Non-GST (Cash)',
+                                      style: TextStyle(
+                                        color: !_isGstInvoice ? Colors.white : const Color(0xFF475569),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                       // Customer Picker
                       const Text('1. Customer Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       const SizedBox(height: 8),
