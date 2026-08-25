@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'supabase_service.dart';
@@ -117,93 +120,187 @@ class AppUpdateService {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.system_update_rounded, color: Colors.blueAccent, size: 28),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Update Available', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    Text('Version v${updateInfo.version}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ),
-            ],
+        return _UpdateDialogContent(updateInfo: updateInfo);
+      },
+    );
+  }
+}
+
+class _UpdateDialogContent extends StatefulWidget {
+  final UpdateInfo updateInfo;
+  const _UpdateDialogContent({required this.updateInfo});
+
+  @override
+  State<_UpdateDialogContent> createState() => _UpdateDialogContentState();
+}
+
+class _UpdateDialogContentState extends State<_UpdateDialogContent> {
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
+  String _statusText = '';
+
+  Future<void> _startDownloadAndInstall() async {
+    setState(() {
+      _isDownloading = true;
+      _downloadProgress = 0.0;
+      _statusText = 'Preparing update...';
+    });
+
+    final String targetUrl = widget.updateInfo.downloadUrl.isNotEmpty
+        ? widget.updateInfo.downloadUrl
+        : widget.updateInfo.htmlUrl;
+
+    try {
+      if (targetUrl.endsWith('.apk')) {
+        final Uri url = Uri.parse(targetUrl);
+        final request = http.Request('GET', url);
+        final response = await http.Client().send(request);
+
+        final int contentLength = response.contentLength ?? 0;
+        final Directory tempDir = await getTemporaryDirectory();
+        final File apkFile = File('${tempDir.path}/app-release.apk');
+        final sink = apkFile.openWrite();
+
+        int downloaded = 0;
+        await response.stream.listen((List<int> chunk) {
+          downloaded += chunk.length;
+          sink.add(chunk);
+          if (contentLength > 0 && mounted) {
+            setState(() {
+              _downloadProgress = downloaded / contentLength;
+              _statusText = 'Downloading: ${(_downloadProgress * 100).toStringAsFixed(0)}%';
+            });
+          }
+        }).asFuture();
+
+        await sink.close();
+
+        if (mounted) {
+          setState(() {
+            _statusText = 'Opening installer...';
+          });
+        }
+
+        final OpenResult res = await OpenFilex.open(
+          apkFile.path,
+          type: 'application/vnd.android.package-archive',
+        );
+
+        if (res.type == ResultType.done && mounted) {
+          Navigator.pop(context);
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Direct APK download error: $e');
+    }
+
+    // Fallback if direct APK download/open fails: Launch external browser
+    try {
+      final Uri url = Uri.parse(targetUrl);
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      try {
+        await launchUrlString(targetUrl, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        try {
+          await launchUrl(Uri.parse(widget.updateInfo.htmlUrl), mode: LaunchMode.platformDefault);
+        } catch (_) {}
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isDownloading = false;
+      });
+      Navigator.pop(context);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.system_update_rounded, color: Colors.blueAccent, size: 28),
           ),
-          content: SingleChildScrollView(
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Current: v$currentVersion', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                      const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.blueAccent),
-                      Text('New: v${updateInfo.version}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text('What\'s New:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                const SizedBox(height: 6),
-                Text(
-                  updateInfo.releaseNotes,
-                  style: const TextStyle(fontSize: 12, color: Colors.black87, height: 1.4),
-                ),
+                const Text('Update Available', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                Text('Version v${widget.updateInfo.version}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Later', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final String targetUrl = updateInfo.downloadUrl.isNotEmpty ? updateInfo.downloadUrl : updateInfo.htmlUrl;
-                final Uri url = Uri.parse(targetUrl);
-                try {
-                  await launchUrl(url, mode: LaunchMode.externalApplication);
-                } catch (_) {
-                  try {
-                    await launchUrlString(targetUrl, mode: LaunchMode.externalApplication);
-                  } catch (_) {
-                    try {
-                      await launchUrl(url, mode: LaunchMode.platformDefault);
-                    } catch (e2) {
-                      debugPrint('Error launching update URL: $e2');
-                    }
-                  }
-                }
-              },
-              icon: const Icon(Icons.download_rounded, color: Colors.white, size: 18),
-              label: const Text('Update Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ],
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Current: v${AppUpdateService.currentVersion}', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const Icon(Icons.arrow_forward_rounded, size: 14, color: Colors.blueAccent),
+                  Text('New: v${widget.updateInfo.version}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green)),
+                ],
               ),
             ),
+            const SizedBox(height: 14),
+            if (_isDownloading) ...[
+              Text(_statusText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+              const SizedBox(height: 8),
+              LinearProgressIndicator(
+                value: _downloadProgress > 0 ? _downloadProgress : null,
+                backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                color: Colors.blueAccent,
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ] else ...[
+              const Text('What\'s New:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 6),
+              Text(
+                widget.updateInfo.releaseNotes,
+                style: const TextStyle(fontSize: 12, color: Colors.black87, height: 1.4),
+              ),
+            ],
           ],
-        );
-      },
+        ),
+      ),
+      actions: [
+        if (!_isDownloading) ...[
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Later', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton.icon(
+            onPressed: _startDownloadAndInstall,
+            icon: const Icon(Icons.download_rounded, color: Colors.white, size: 18),
+            label: const Text('Update Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
