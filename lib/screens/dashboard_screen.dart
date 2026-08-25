@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/company_provider.dart';
 import '../services/supabase_service.dart';
+import '../services/app_update_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -47,7 +48,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDashboard();
+      _checkForAppUpdates();
     });
+  }
+
+  Future<void> _checkForAppUpdates() async {
+    final updateInfo = await AppUpdateService.checkForUpdates();
+    if (updateInfo != null && updateInfo.hasUpdate && mounted) {
+      AppUpdateService.showUpdateDialog(context, updateInfo);
+    }
   }
 
   Future<void> _handleCompanySecretClick() async {
