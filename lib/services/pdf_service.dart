@@ -38,22 +38,12 @@ class PdfService {
     final String custPhone = customer?['mobile']?.toString() ?? customer?['phone']?.toString() ?? '';
     final String custGst = customer?['gst_number']?.toString() ?? '';
 
-    // Load logo watermark bytes (company logo if available, else assets/logo.png)
+    // Load BusinessOS watermark logo bytes from assets
     pw.ImageProvider? logoImage;
     try {
-      final logoUrl = business['logo_url']?.toString() ?? business['logo']?.toString() ?? '';
-      if (logoUrl.startsWith('http')) {
-        logoImage = await networkImage(logoUrl);
-      } else {
-        final ByteData logoData = await rootBundle.load('assets/logo.png');
-        logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
-      }
-    } catch (_) {
-      try {
-        final ByteData logoData = await rootBundle.load('assets/logo.png');
-        logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
-      } catch (_) {}
-    }
+      final ByteData logoData = await rootBundle.load('assets/logo.png');
+      logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
+    } catch (_) {}
 
     pdf.addPage(
       pw.Page(
