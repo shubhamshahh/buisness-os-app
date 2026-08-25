@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/company_provider.dart';
 import '../services/supabase_service.dart';
+import '../services/pdf_service.dart';
 
 class InvoiceCreatorScreen extends StatefulWidget {
   const InvoiceCreatorScreen({super.key});
@@ -54,6 +56,7 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
   @override
   void initState() {
     super.initState();
+    _initSessionMode();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (_tabController.index == 0) {
@@ -66,6 +69,16 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchInvoices();
     });
+  }
+
+  Future<void> _initSessionMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final mode = prefs.getString('buisnessos_session_mode') ?? 'gst';
+    if (mounted) {
+      setState(() {
+        _isGstInvoice = (mode == 'gst');
+      });
+    }
   }
 
   @override
@@ -331,7 +344,31 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final companyProvider = Provider.of<CompanyProvider>(context, listen: false);
+                            final bizData = {
+                              'name': companyProvider.companyName.isNotEmpty ? companyProvider.companyName : 'Mk Polymers',
+                              'address': 'c/168, Mk Polymers, New Post Office Road, Modhera GIDC, Mahesana - 384002',
+                              'gst': 'kkbk00020551584',
+                              'signatory': 'M.A. SHAH',
+                            };
+
+                            await PdfService.shareOrPrintInvoice(
+                              invoice: invoice,
+                              items: List<Map<String, dynamic>>.from(items),
+                              business: bizData,
+                            );
+                          },
+                          icon: const Icon(Icons.picture_as_pdf, color: Colors.blueAccent),
+                          label: const Text('Share / Download PDF', style: TextStyle(color: Colors.blueAccent, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.blueAccent),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                         if (!isPaid)
                           ElevatedButton(
                             onPressed: () async {

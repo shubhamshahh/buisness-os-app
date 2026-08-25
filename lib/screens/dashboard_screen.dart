@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/company_provider.dart';
 import '../services/supabase_service.dart';
 
@@ -27,12 +28,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _lowStockProducts = [];
   String _dashboardDebug = '';
 
+  int _secretClickCount = 0;
+  DateTime? _lastClickTime;
+  String _activeSessionMode = 'gst';
+
   @override
   void initState() {
     super.initState();
+    _initSessionMode();
+  }
+
+  Future<void> _initSessionMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _activeSessionMode = prefs.getString('buisnessos_session_mode') ?? 'gst';
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadDashboard();
     });
+  }
+
+  Future<void> _handleCompanySecretClick() async {
+    final now = DateTime.now();
+    if (_lastClickTime == null || now.difference(_lastClickTime!) > const Duration(seconds: 3)) {
+      _secretClickCount = 1;
+    } else {
+      _secretClickCount++;
+    }
+    _lastClickTime = now;
+
+    if (_secretClickCount >= 5) {
+      _secretClickCount = 0;
+      final prefs = await SharedPreferences.getInstance();
+      final newMode = _activeSessionMode == 'gst' ? 'non_gst' : 'gst';
+      await prefs.setString('buisnessos_session_mode', newMode);
+
+      setState(() {
+        _activeSessionMode = newMode;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              newMode == 'non_gst'
+                  ? '🔓 Unlocked Non-GST Session (Stealth Mode)'
+                  : '🏢 Switched to GST Session',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: newMode == 'non_gst' ? const Color(0xFF059669) : const Color(0xFF2563EB),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
+      _loadDashboard();
+    }
   }
 
   Future<void> _loadDashboard() async {
@@ -58,8 +109,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           .gte('created_at', todayStart)
           .lte('created_at', todayEnd);
 
-      final List<Map<String, dynamic>> invoicesList = List<Map<String, dynamic>>.from(invoices);
+      final List<Map<String, dynamic>> rawInvoicesList = List<Map<String, dynamic>>.from(invoices);
       
+      final List<Map<String, dynamic>> invoicesList = rawInvoicesList.where((inv) {
+        final double gst = double.tryParse(inv['gst']?.toString() ?? '0') ?? 0.0;
+        final bool isGst = gst > 0;
+        return _activeSessionMode == 'gst' ? isGst : !isGst;
+      }).toList();
+
       double todayRevenue = 0;
       for (var inv in invoicesList) {
         todayRevenue += double.tryParse(inv['total'].toString()) ?? 0.0;
@@ -377,15 +434,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                companyProvider.companyName.isNotEmpty ? companyProvider.companyName : 'MK Polymers',
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF0F172A),
-                                  letterSpacing: -0.5,
+                              GestureDetector(
+                                onTap: _handleCompanySecretClick,
+                                behavior: HitTestBehavior.opaque,
+                                child: Text(
+                                  companyProvider.companyName.isNotEmpty ? companyProvider.companyName : 'MK Polymers',
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0F172A),
+                                    letterSpacing: -0.5,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 5),
                               SingleChildScrollView(
