@@ -29,7 +29,7 @@ class UpdateInfo {
 }
 
 class AppUpdateService {
-  static const String fallbackVersion = '1.0.4';
+  static const String fallbackVersion = '1.0.5';
   static const String githubApiUrl = 'https://api.github.com/repos/shubhamshahh/buisness-os-app/releases/latest';
 
   /// Checks GitHub Releases API and Supabase for new APK updates
