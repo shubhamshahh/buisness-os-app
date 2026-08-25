@@ -138,13 +138,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       final yesterdayInvoices = await _supabaseService.client
           .from('invoices')
-          .select('total')
+          .select('total, gst')
           .eq('company_id', cid)
           .gte('created_at', yStart)
           .lte('created_at', yEnd);
 
+      final List<Map<String, dynamic>> rawYesterday = List<Map<String, dynamic>>.from(yesterdayInvoices);
+      final yesterdayFiltered = rawYesterday.where((inv) {
+        final double gst = double.tryParse(inv['gst']?.toString() ?? '0') ?? 0.0;
+        final bool isGst = gst > 0;
+        return _activeSessionMode == 'gst' ? isGst : !isGst;
+      }).toList();
+
       double yRevenue = 0;
-      for (var inv in yesterdayInvoices) {
+      for (var inv in yesterdayFiltered) {
         yRevenue += double.tryParse(inv['total'].toString()) ?? 0.0;
       }
 
@@ -159,21 +166,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         final List<Map<String, dynamic>> itemsList = List<Map<String, dynamic>>.from(items);
         if (itemsList.isNotEmpty) {
-          final productIds = itemsList.map((i) => i['product_id']).toSet().toList();
-          final products = await _supabaseService.client
-              .from('products')
-              .select('id, cost')
-              .filter('id', 'in', productIds)
-              .eq('company_id', cid);
+          final productIds = itemsList
+              .map((i) => i['product_id'])
+              .where((id) => id != null)
+              .toSet()
+              .toList();
 
-          final List<Map<String, dynamic>> productsList = List<Map<String, dynamic>>.from(products);
-          final costMap = {for (var p in productsList) p['id']: double.tryParse(p['cost'].toString()) ?? 0.0};
+          if (productIds.isNotEmpty) {
+            final products = await _supabaseService.client
+                .from('products')
+                .select('id, cost')
+                .filter('id', 'in', productIds)
+                .eq('company_id', cid);
 
-          for (var item in itemsList) {
-            final double cost = costMap[item['product_id']] ?? 0.0;
-            final double price = double.tryParse(item['price'].toString()) ?? 0.0;
-            final int qty = int.tryParse(item['qty'].toString()) ?? 0;
-            totalProfit += (price - cost) * qty;
+            final List<Map<String, dynamic>> productsList = List<Map<String, dynamic>>.from(products);
+            final costMap = {for (var p in productsList) p['id']: double.tryParse(p['cost'].toString()) ?? 0.0};
+
+            for (var item in itemsList) {
+              final double cost = costMap[item['product_id']] ?? 0.0;
+              final double price = double.tryParse(item['price'].toString()) ?? 0.0;
+              final int qty = int.tryParse(item['qty'].toString()) ?? 0;
+              totalProfit += (price - cost) * qty;
+            }
           }
         }
       }

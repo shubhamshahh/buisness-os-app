@@ -100,14 +100,25 @@ class _InvoiceCreatorScreenState extends State<InvoiceCreatorScreen> with Single
     });
 
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final sessionMode = prefs.getString('buisnessos_session_mode') ?? 'gst';
+
       final List<Map<String, dynamic>> data = await _supabaseService.getTableData(
         table: 'invoices',
         companyId: cid,
         orderBy: 'id',
         ascending: false,
       );
+
+      final List<Map<String, dynamic>> filteredInvoices = data.where((inv) {
+        final double gst = double.tryParse(inv['gst']?.toString() ?? '0') ?? 0.0;
+        final bool isGst = gst > 0;
+        return sessionMode == 'gst' ? isGst : !isGst;
+      }).toList();
+
       setState(() {
-        _invoices = data;
+        _invoices = filteredInvoices;
+        _isGstInvoice = (sessionMode == 'gst');
       });
     } catch (e) {
       debugPrint('Error fetching invoices: $e');
