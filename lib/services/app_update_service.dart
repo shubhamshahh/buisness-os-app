@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'supabase_service.dart';
 
 class UpdateInfo {
   final String version;
@@ -23,13 +24,14 @@ class AppUpdateService {
   static const String currentVersion = '1.0.0';
   static const String githubApiUrl = 'https://api.github.com/repos/shubhamshahh/buisness-os-app/releases/latest';
 
-  /// Checks GitHub Releases for new APK updates
+  /// Checks GitHub Releases API and Supabase for new APK updates
   static Future<UpdateInfo?> checkForUpdates() async {
+    // 1. Try GitHub API
     try {
       final response = await http.get(
         Uri.parse(githubApiUrl),
         headers: {'Accept': 'application/vnd.github.v3+json'},
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -58,8 +60,37 @@ class AppUpdateService {
         );
       }
     } catch (e) {
-      debugPrint('Update check failed: $e');
+      debugPrint('GitHub API check failed: $e');
     }
+
+    // 2. Fallback: Check Supabase for app version if GitHub repo is private
+    try {
+      final response = await SupabaseService.instance.client
+          .from('companies')
+          .select('id, app_version, apk_url')
+          .not('app_version', 'is', null)
+          .limit(1);
+
+      if (response.isNotEmpty) {
+        final row = response.first;
+        final String latestVer = (row['app_version'] ?? '').toString().replaceAll('v', '').trim();
+        final String apkUrl = (row['apk_url'] ?? 'https://github.com/shubhamshahh/buisness-os-app/releases').toString();
+
+        final bool isNewer = _isVersionNewer(currentVersion, latestVer);
+        if (isNewer) {
+          return UpdateInfo(
+            version: latestVer,
+            releaseNotes: 'Performance improvements, invoice enhancements, and new features.',
+            downloadUrl: apkUrl,
+            htmlUrl: apkUrl,
+            hasUpdate: true,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Supabase version check failed: $e');
+    }
+
     return null;
   }
 
