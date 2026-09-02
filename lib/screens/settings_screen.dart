@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../services/supabase_service.dart';
+import '../services/app_update_service.dart';
 import '../providers/company_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -14,6 +16,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final SupabaseService _supabaseService = SupabaseService.instance;
   bool _loading = false;
   bool _saving = false;
+  bool _checkingUpdate = false;
+  String _currentAppVersion = '1.0.5';
 
   final TextEditingController _companyNameController = TextEditingController();
   final TextEditingController _gstController = TextEditingController();
@@ -32,6 +36,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _fetchSettings();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    try {
+      final pkgInfo = await PackageInfo.fromPlatform();
+      if (pkgInfo.version.isNotEmpty) {
+        setState(() {
+          _currentAppVersion = pkgInfo.version;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkAppUpdatesManually() async {
+    setState(() {
+      _checkingUpdate = true;
+    });
+
+    try {
+      final updateInfo = await AppUpdateService.checkForUpdates(isManualCheck: true);
+      if (!mounted) return;
+
+      if (updateInfo != null && updateInfo.hasUpdate) {
+        AppUpdateService.showUpdateDialog(context, updateInfo);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Your application is up to date (v$_currentAppVersion)!',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not check for updates: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _checkingUpdate = false;
+        });
+      }
+    }
   }
 
   Future<void> _fetchSettings() async {
@@ -340,7 +394,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+
+                  // App Version & Updates Card
+                  _buildSectionCard(
+                    title: 'App Version & Updates',
+                    icon: Icons.system_update_rounded,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Installed Version', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                              const SizedBox(height: 2),
+                              Text('v$_currentAppVersion', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+                            ],
+                          ),
+                          _checkingUpdate
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16),
+                                  child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.blueAccent)),
+                                )
+                              : ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF0F172A),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  ),
+                                  onPressed: _checkAppUpdatesManually,
+                                  icon: const Icon(Icons.refresh, size: 18),
+                                  label: const Text('Check for Updates', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                ),
+                        ],
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 24),
+
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blueAccent,

@@ -32,6 +32,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _secretClickCount = 0;
   DateTime? _lastClickTime;
   String _activeSessionMode = 'gst';
+  UpdateInfo? _availableUpdateInfo;
 
   @override
   void initState() {
@@ -54,8 +55,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _checkForAppUpdates() async {
     final updateInfo = await AppUpdateService.checkForUpdates();
-    if (updateInfo != null && updateInfo.hasUpdate && mounted) {
-      AppUpdateService.showUpdateDialog(context, updateInfo);
+    if (mounted) {
+      setState(() {
+        _availableUpdateInfo = (updateInfo != null && updateInfo.hasUpdate) ? updateInfo : null;
+      });
+      if (updateInfo != null && updateInfo.hasUpdate) {
+        AppUpdateService.showUpdateDialog(context, updateInfo);
+      }
     }
   }
 
@@ -410,6 +416,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // New Version Available Top Banner
+              if (_availableUpdateInfo != null)
+                InkWell(
+                  onTap: () => AppUpdateService.showUpdateDialog(context, _availableUpdateInfo!),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withValues(alpha: 0.25),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.rocket_launch_rounded, color: Colors.amberAccent, size: 24),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'New Update Available (v${_availableUpdateInfo!.version})',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Tap here to download & install update',
+                                style: TextStyle(color: Colors.white70, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 14),
+                      ],
+                    ),
+                  ),
+                ),
+
               if (companyProvider.debugMessage.isNotEmpty || _dashboardDebug.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.all(12),

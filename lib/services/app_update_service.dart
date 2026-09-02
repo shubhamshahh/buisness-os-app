@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'supabase_service.dart';
 
 class UpdateInfo {
   final String version;
@@ -29,11 +28,11 @@ class UpdateInfo {
 }
 
 class AppUpdateService {
-  static const String fallbackVersion = '1.0.5';
+  static const String fallbackVersion = '1.0.7';
   static const String githubApiUrl = 'https://api.github.com/repos/shubhamshahh/buisness-os-app/releases/latest';
 
-  /// Checks GitHub Releases API and Supabase for new APK updates
-  static Future<UpdateInfo?> checkForUpdates() async {
+  /// Checks GitHub Releases API for new APK updates
+  static Future<UpdateInfo?> checkForUpdates({bool isManualCheck = false}) async {
     String currentVersion = fallbackVersion;
     try {
       final pkgInfo = await PackageInfo.fromPlatform();
@@ -44,16 +43,19 @@ class AppUpdateService {
 
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. Try GitHub API
+    // 1. Try GitHub API with proper User-Agent header
     try {
       final response = await http.get(
         Uri.parse(githubApiUrl),
-        headers: {'Accept': 'application/vnd.github.v3+json'},
-      ).timeout(const Duration(seconds: 5));
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'BusinessOS-App',
+        },
+      ).timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
-        final String tagName = (data['tag_name'] ?? '').toString().replaceAll('v', '').trim();
+        final String tagName = (data['tag_name'] ?? '').toString().replaceAll('v', '').replaceAll('V', '').trim();
         final String body = (data['body'] ?? 'Performance improvements and bug fixes.').toString();
         final String htmlUrl = (data['html_url'] ?? 'https://github.com/shubhamshahh/buisness-os-app/releases').toString();
 
@@ -69,7 +71,7 @@ class AppUpdateService {
 
         final String dismissedVer = prefs.getString('dismissed_update_version') ?? '';
         final bool isNewer = _isVersionNewer(currentVersion, tagName);
-        final bool shouldShow = isNewer && (dismissedVer != tagName);
+        final bool shouldShow = isNewer && (isManualCheck || dismissedVer != tagName);
 
         return UpdateInfo(
           version: tagName.isEmpty ? currentVersion : tagName,
@@ -84,43 +86,24 @@ class AppUpdateService {
       debugPrint('GitHub API check failed: $e');
     }
 
-    // 2. Fallback: Check Supabase for app version if GitHub repo is private
-    try {
-      final response = await SupabaseService.instance.client
-          .from('companies')
-          .select('id, app_version, apk_url')
-          .not('app_version', 'is', null)
-          .limit(1);
-
-      if (response.isNotEmpty) {
-        final row = response.first;
-        final String latestVer = (row['app_version'] ?? '').toString().replaceAll('v', '').trim();
-        final String apkUrl = (row['apk_url'] ?? 'https://github.com/shubhamshahh/buisness-os-app/releases').toString();
-
-        final bool isNewer = _isVersionNewer(currentVersion, latestVer);
-        if (isNewer) {
-          return UpdateInfo(
-            version: latestVer,
-            currentInstalledVersion: currentVersion,
-            releaseNotes: 'Performance improvements, invoice enhancements, and new features.',
-            downloadUrl: apkUrl,
-            htmlUrl: apkUrl,
-            hasUpdate: true,
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Supabase version check failed: $e');
-    }
-
     return null;
   }
 
   static bool _isVersionNewer(String current, String latest) {
     if (latest.isEmpty) return false;
     try {
-      List<int> currentParts = current.split('+')[0].split('.').map((e) => int.tryParse(e) ?? 0).toList();
-      List<int> latestParts = latest.split('+')[0].split('.').map((e) => int.tryParse(e) ?? 0).toList();
+      String cleanCurrent = current.replaceAll('v', '').replaceAll('V', '').trim();
+      String cleanLatest = latest.replaceAll('v', '').replaceAll('V', '').trim();
+
+      List<int> currentParts = cleanCurrent.split('+')[0].split('.').map((e) => int.tryParse(e) ?? 0).toList();
+      List<int> latestParts = cleanLatest.split('+')[0].split('.').map((e) => int.tryParse(e) ?? 0).toList();
+
+      while (currentParts.length < 3) {
+        currentParts.add(0);
+      }
+      while (latestParts.length < 3) {
+        latestParts.add(0);
+      }
 
       for (int i = 0; i < 3; i++) {
         int c = i < currentParts.length ? currentParts[i] : 0;
